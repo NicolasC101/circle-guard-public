@@ -7,6 +7,10 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
+    environment {
+        PATH+CI_TOOLS = "${WORKSPACE}/.ci-tools"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -21,6 +25,12 @@ pipeline {
                     set -e
                     TOOLS_DIR="${WORKSPACE}/.ci-tools"
                     mkdir -p "$TOOLS_DIR"
+
+                                        if [ ! -x "$TOOLS_DIR/docker" ]; then
+                                            curl -fsSL -o "$TOOLS_DIR/docker.tgz" https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz
+                                            tar -xzf "$TOOLS_DIR/docker.tgz" -C "$TOOLS_DIR" --strip-components=1 docker/docker
+                                            rm -f "$TOOLS_DIR/docker.tgz"
+                                        fi
 
                     if [ ! -x "$TOOLS_DIR/kind" ]; then
                       curl -fsSL -o "$TOOLS_DIR/kind" https://github.com/kubernetes-sigs/kind/releases/download/v0.31.0/kind-linux-amd64
