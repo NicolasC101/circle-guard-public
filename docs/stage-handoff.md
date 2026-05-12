@@ -2,9 +2,9 @@
 
 ## Estado actual
 - La rama `stage` ya incluye el pipeline de Kubernetes para el punto 4.
-- El fallo actual de Jenkins era porque el kubeconfig de `kind` quedó apuntando a `host.docker.internal` pero validando el certificado contra ese mismo nombre, mientras el SAN real del API server es `localhost`.
-- Se corrigió reescribiendo el kubeconfig para conectarse por `host.docker.internal` y validando el certificado como `localhost`, además de limpiar las imágenes `stage` al final del pipeline.
-- El cambio más reciente quedó subido en el commit `fbefc51`.
+- El fallo actual de Jenkins era porque el smoke test de stage intentaba conectar a los servicios antes de que el entorno terminara de aceptar conexiones.
+- Se corrigió haciendo el smoke test con reintentos sobre el login de Auth y dejando comentada la limpieza de imágenes `stage` para acelerar la depuración.
+- El cambio más reciente quedó subido en el commit `15488b1`.
 
 ## Archivos relevantes
 - [Jenkinsfile](../Jenkinsfile)
@@ -21,8 +21,8 @@
 5. Construye los JAR y las imágenes Docker de Auth, Identity y Gateway.
 6. Carga las imágenes en `kind`.
 7. Aplica los manifiestos de Kubernetes de stage.
-8. Ejecuta el smoke test contra el entorno desplegado.
-9. Elimina las imágenes `stage` del daemon Docker para no dejarlas disponibles para la siguiente fase.
+8. Ejecuta el smoke test contra el entorno desplegado, con reintentos si los servicios todavía están arrancando.
+9. La limpieza de imágenes `stage` queda comentada por ahora para facilitar la depuración.
 
 ## Corrección aplicada al fallo actual
 - Antes Jenkins intentaba usar el Docker del host y fallaba con:
@@ -32,7 +32,8 @@
 - La espera de Docker ahora es de hasta 5 minutos para cubrir arranques lentos del daemon.
 - Esto evita depender de `docker:dind` y usa el daemon TCP expuesto por Docker Desktop.
 - El kubeconfig generado para `kind` se reescribe para usar `host.docker.internal` y se fuerza `tls-server-name=localhost` para respetar el SAN del certificado.
-- Al final del pipeline se eliminan las imágenes `circleguard-*-service:stage` del daemon Docker.
+- El smoke test de stage reintenta el login hasta que Auth responde, para tolerar arranques lentos.
+- La limpieza de imágenes `stage` quedó comentada temporalmente.
 
 ## Requisito del entorno
 - En Docker Desktop debe estar habilitado `Expose daemon on tcp://localhost:2375 without TLS`.

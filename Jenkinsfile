@@ -211,12 +211,14 @@ pipeline {
 
     post {
         always {
+            /*
             sh '''
                 set +e
                 docker image rm -f circleguard-auth-service:stage >/dev/null 2>&1
                 docker image rm -f circleguard-identity-service:stage >/dev/null 2>&1
                 docker image rm -f circleguard-gateway-service:stage >/dev/null 2>&1
             '''
+            */
             junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
             archiveArtifacts allowEmptyArchive: true, artifacts: '**/build/reports/tests/test/**'
         }

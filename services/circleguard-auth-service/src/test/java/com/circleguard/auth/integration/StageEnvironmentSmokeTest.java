@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -22,7 +23,9 @@ class StageEnvironmentSmokeTest {
     private static final String USERNAME = System.getenv().getOrDefault("CIRCLEGUARD_USERNAME", "super_admin");
     private static final String PASSWORD = System.getenv().getOrDefault("CIRCLEGUARD_PASSWORD", "password");
 
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+        private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -45,7 +48,7 @@ class StageEnvironmentSmokeTest {
                 .GET()
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response = sendWithRetry(request, 30, Duration.ofSeconds(2));
         assertEquals(200, response.statusCode());
 
         JsonNode body = objectMapper.readTree(response.body());
@@ -63,7 +66,7 @@ class StageEnvironmentSmokeTest {
                 .header("Authorization", "Bearer " + token)
                 .GET()
                 .build();
-        HttpResponse<String> qrResponse = httpClient.send(qrRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> qrResponse = sendWithRetry(qrRequest, 30, Duration.ofSeconds(2));
         assertEquals(200, qrResponse.statusCode());
 
         String qrToken = objectMapper.readTree(qrResponse.body()).get("qrToken").asText();
@@ -74,7 +77,7 @@ class StageEnvironmentSmokeTest {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"token\":\"" + qrToken + "\"}"))
                 .build();
 
-        HttpResponse<String> validateResponse = httpClient.send(validateRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> validateResponse = sendWithRetry(validateRequest, 30, Duration.ofSeconds(2));
         assertEquals(200, validateResponse.statusCode());
         JsonNode validateBody = objectMapper.readTree(validateResponse.body());
         assertTrue(validateBody.get("valid").asBoolean());
@@ -90,8 +93,29 @@ class StageEnvironmentSmokeTest {
                         StandardCharsets.UTF_8))
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response = sendWithRetry(request, 30, Duration.ofSeconds(2));
         assertEquals(200, response.statusCode());
         return objectMapper.readTree(response.body());
+    }
+
+    private HttpResponse<String> sendWithRetry(HttpRequest request, int attempts, Duration delay)
+            throws IOException, InterruptedException {
+        IOException lastException = null;
+
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            } catch (IOException exception) {
+                lastException = exception;
+
+                if (attempt == attempts) {
+                    throw exception;
+                }
+
+                Thread.sleep(delay.toMillis());
+            }
+        }
+
+        throw lastException;
     }
 }
