@@ -1,6 +1,7 @@
 package com.circleguard.promotion.controller;
 
 import com.circleguard.promotion.service.HealthStatusService;
+import com.circleguard.promotion.security.JwtAuthenticationFilter;
 import com.circleguard.promotion.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ class HealthStatusControllerTest {
 
     @MockBean
     private HealthStatusService statusService;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     @WithMockUser(authorities = "HEALTH_CENTER")
