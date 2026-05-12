@@ -64,6 +64,44 @@ Configuracion opcional de webhook:
 Nota:
 - En este punto no necesitas `infra/jenkins/Jenkinsfile.dev`; el archivo de raiz `Jenkinsfile` es el que Jenkins multibranch va a descubrir.
 
+## Pipeline de stage (punto 4)
+Archivo del pipeline:
+- `Jenkinsfile`
+
+Que hace:
+- Ejecuta las pruebas unitarias como puerta de entrada.
+- Construye las imagenes Docker de Auth, Identity y Gateway.
+- Carga esas imagenes en el cluster local `kind`.
+- Aplica los manifiestos de Kubernetes de stage.
+- Ejecuta pruebas de integracion contra la aplicacion ya desplegada.
+
+Archivos de soporte:
+- `services/circleguard-auth-service/Dockerfile`
+- `services/circleguard-identity-service/Dockerfile`
+- `services/circleguard-gateway-service/Dockerfile`
+- `infra/k8s/stage/apps.yaml`
+- `services/circleguard-auth-service/src/test/java/com/circleguard/auth/integration/StageEnvironmentSmokeTest.java`
+
+Flujo esperado en Jenkins:
+1. Hacer checkout de la rama `stage`.
+2. Descargar `kind` y `kubectl` dentro del workspace si no existen.
+3. Ejecutar las pruebas unitarias.
+4. Construir los JAR y las imagenes Docker.
+5. Cargar las imagenes en el cluster `kind`.
+6. Aplicar el namespace y los manifiestos de stage.
+7. Esperar a que los deployments esten listos.
+8. Correr las pruebas de integracion contra los endpoints publicados por el cluster.
+
+Puertos expuestos en kind:
+- `30080` para Auth.
+- `30081` para Identity.
+- `30082` para Gateway.
+
+Notas de configuracion:
+- Auth ya no apunta a `localhost` para Identity; ahora usa `circleguard.identity-service.url`.
+- Las pruebas de integracion usan `host.docker.internal` para llegar desde Jenkins a los NodePorts del cluster local.
+- Todavia no se incluyen pruebas E2E; esas se reservaran para `master`.
+
 ## Kubernetes
 Archivo de cluster:
 - `infra/k8s/kind-config.yaml`
