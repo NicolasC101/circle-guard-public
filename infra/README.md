@@ -23,6 +23,33 @@ Acceso inicial:
 - El password inicial se obtiene en los logs del contenedor con `docker logs circleguard-jenkins` o en `/var/jenkins_home/secrets/initialAdminPassword`.
 - En el wizard de Jenkins, sigue la opción de instalar plugins sugeridos para dejar el entorno listo más rápido.
 
+## Pipeline de desarrollo (punto 2)
+Archivo del pipeline:
+- `infra/jenkins/Jenkinsfile.dev`
+
+Que hace:
+- Hace checkout del repositorio y habilita `gradlew`.
+- Ejecuta solo pruebas unitarias por microservicio seleccionado.
+- No necesita Dockerfiles ni manifiestos de Kubernetes para esta fase.
+
+Pruebas incluidas por servicio:
+- Auth: `LoginControllerTest`, `QrTokenServiceUnitTest`, `JwtTokenServiceUnitTest`, `CustomUserDetailsServiceUnitTest`, `JwtAuthenticationFilterUnitTest`, `DualChainAuthenticationProviderUnitTest`.
+- Identity: `IdentityEncryptionConverterTest`, `IdentityVaultControllerTest`.
+- Gateway: `QrValidationServiceTest`, `QrValidationServiceUnitTest`, `GateControllerTest`.
+- Form: `SymptomMapperTest`, `QuestionnaireControllerTest`, `HealthSurveyControllerTest`, `AttachmentControllerTest`.
+- Promotion: `StatusLifecycleTest`, `HealthStatusServiceTest`, `HealthStatusReevaluationTest`, `FloorServiceTest`, `AdministrativeCorrectionTest`, `SurveyListenerTest`, `HealthStatusControllerTest`.
+- Notification: `TemplateServiceTest`, `RoomReservationServiceTest`, `PriorityAlertListenerTest`, `NotificationRetryTest`, `NotificationDispatcherTest`, `LmsServiceTest`, `ExposureNotificationListenerTest`.
+
+Configuracion en Jenkins desde `http://localhost:8080`:
+1. Entra con el usuario administrador y abre `New Item`.
+2. Crea un proyecto `Pipeline` y ponle un nombre como `circleguard-dev-unit-tests`.
+3. En la seccion `Pipeline`, elige `Pipeline script from SCM`.
+4. Selecciona `Git` como SCM y pega la URL del repositorio.
+5. Usa la rama `master` o la rama que estes trabajando.
+6. En `Script Path`, escribe `infra/jenkins/Jenkinsfile.dev`.
+7. Guarda el job y ejecuta `Build Now`.
+8. Revisa `Stage View`, la consola y los reportes JUnit para confirmar que solo corrio el bloque de pruebas unitarias.
+
 ## Kubernetes
 Archivo de cluster:
 - `infra/k8s/kind-config.yaml`
