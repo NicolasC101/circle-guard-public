@@ -7,6 +7,11 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
+    environment {
+        DOCKER_HOST = 'tcp://host.docker.internal:2375'
+        DOCKER_TLS_CERTDIR = ''
+    }
+
     stages {
         stage('Checkout') {
             steps {

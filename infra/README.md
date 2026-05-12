@@ -19,8 +19,8 @@ docker compose -f infra/jenkins/docker-compose.yml up -d
 ```
 
 Nota importante:
-- Jenkins usa el socket Docker del host montado en `/var/run/docker.sock`.
-- El pipeline de `stage` instala el cliente Docker en el workspace y usa ese socket para hablar con el daemon local.
+- Jenkins usa el daemon TCP de Docker Desktop en `host.docker.internal:2375`.
+- El pipeline de `stage` instala el cliente Docker en el workspace y usa ese daemon para hablar con Docker Desktop.
 - El pipeline de `stage` espera hasta 5 minutos a que `docker info` responda antes de seguir con `kind`.
 - Si cambias el compose, vuelve a recrear el stack con `docker compose -f infra/jenkins/docker-compose.yml up -d --force-recreate`.
 - El host donde corre Docker debe estar activo antes de lanzar Jenkins.
