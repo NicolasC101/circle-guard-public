@@ -3,8 +3,8 @@
 ## Estado actual
 - La rama `stage` ya incluye el pipeline de Kubernetes para el punto 4.
 - El fallo actual de Jenkins era por falta de acceso a un daemon Docker desde el contenedor de Jenkins.
-- Ya se corrigió el enfoque para usar `docker:dind` dentro del compose de Jenkins y apuntar el pipeline a `DOCKER_HOST=tcp://docker:2375`.
-- El cambio más reciente quedó subido en el commit `6a4754a`.
+- Se corrigió volviendo al socket Docker del host montado en Jenkins y conservando el cliente Docker descargado en el workspace.
+- El cambio más reciente quedó subido en el commit `b3d2381`.
 
 ## Archivos relevantes
 - [Jenkinsfile](../Jenkinsfile)
@@ -26,11 +26,9 @@
 ## Corrección aplicada al fallo actual
 - Antes Jenkins intentaba usar el Docker del host y fallaba con:
   - `Cannot connect to the Docker daemon at unix:///var/run/docker.sock`
-- Ahora el stack de Jenkins arranca un servicio `docker:dind`.
-- Jenkins usa:
-  - `DOCKER_HOST=tcp://docker:2375`
-  - `DOCKER_TLS_CERTDIR=`
-- El pipeline espera a `docker info` antes de invocar `kind`.
+- Ahora Jenkins monta `/var/run/docker.sock` desde el host.
+- El pipeline descarga el Docker CLI en `.ci-tools` y espera a `docker info` antes de invocar `kind`.
+- Esto evita depender de `docker:dind` y deja la topología alineada con el Docker local.
 
 ## Siguiente paso sugerido
 1. Recrear el stack local de Jenkins con el compose actualizado.

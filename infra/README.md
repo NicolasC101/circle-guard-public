@@ -19,9 +19,10 @@ docker compose -f infra/jenkins/docker-compose.yml up -d
 ```
 
 Nota importante:
-- Jenkins usa un daemon Docker propio basado en `docker:dind` dentro del mismo compose.
-- El pipeline de `stage` apunta a `DOCKER_HOST=tcp://docker:2375`, asi que no depende del socket Docker del host.
+- Jenkins usa el socket Docker del host montado en `/var/run/docker.sock`.
+- El pipeline de `stage` instala el cliente Docker en el workspace y usa ese socket para hablar con el daemon local.
 - Si cambias el compose, vuelve a recrear el stack con `docker compose -f infra/jenkins/docker-compose.yml up -d --force-recreate`.
+- El host donde corre Docker debe estar activo antes de lanzar Jenkins.
 
 Acceso inicial:
 - `http://localhost:8080`
@@ -105,6 +106,7 @@ Puertos expuestos en kind:
 Notas de configuracion:
 - Auth ya no apunta a `localhost` para Identity; ahora usa `circleguard.identity-service.url`.
 - Las pruebas de integracion usan `host.docker.internal` para llegar desde Jenkins a los NodePorts del cluster local.
+- Jenkins necesita acceso al socket Docker del host para crear y cargar las imagenes de `kind`.
 - Todavia no se incluyen pruebas E2E; esas se reservaran para `master`.
 
 ## Kubernetes
