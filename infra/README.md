@@ -25,7 +25,7 @@ Acceso inicial:
 
 ## Pipeline de desarrollo (punto 2)
 Archivo del pipeline:
-- `infra/jenkins/Jenkinsfile.dev`
+- `Jenkinsfile`
 
 Que hace:
 - Hace checkout del repositorio y habilita `gradlew`.
@@ -42,13 +42,27 @@ Pruebas incluidas por servicio:
 
 Configuracion en Jenkins desde `http://localhost:8080`:
 1. Entra con el usuario administrador y abre `New Item`.
-2. Crea un proyecto `Pipeline` y ponle un nombre como `circleguard-dev-unit-tests`.
-3. En la seccion `Pipeline`, elige `Pipeline script from SCM`.
-4. Selecciona `Git` como SCM y pega la URL del repositorio.
-5. Usa la rama `master` o la rama que estes trabajando.
-6. En `Script Path`, escribe `infra/jenkins/Jenkinsfile.dev`.
-7. Guarda el job y ejecuta `Build Now`.
-8. Revisa `Stage View`, la consola y los reportes JUnit para confirmar que solo corrio el bloque de pruebas unitarias.
+2. Crea un proyecto `Multibranch Pipeline` y ponle un nombre como `circleguard-dev`.
+3. En `Branch Sources`, agrega `Git`.
+4. Pega la URL del repositorio.
+5. Si el repositorio es publico, deja `Credentials` en `None`.
+6. Si Jenkins exige credenciales, crea una credencial de tipo `Username with password` con tu usuario de GitHub y un token personal como password, o usa el token que ya tengas configurado.
+7. En `Behaviors`, puedes dejar la deteccion por defecto para descubrir ramas remotas.
+8. Guarda el job.
+9. Abre `Scan Multibranch Pipeline Now` para que Jenkins detecte la rama `dev`.
+10. Cuando aparezca la rama `dev`, entra al subjob y ejecuta `Build Now`.
+11. Revisa `Console Output`, `Stage View` y los reportes JUnit para confirmar que corrieron solo las pruebas unitarias.
+12. Para futuras ejecuciones, cada push a `dev` disparara el pipeline automaticamente si el webhook queda configurado.
+
+Configuracion opcional de webhook:
+1. En GitHub, abre el repositorio.
+2. Ve a `Settings > Webhooks`.
+3. Agrega la URL del webhook de Jenkins, normalmente `http://localhost:8080/github-webhook/` si Jenkins es accesible desde GitHub o desde un tunnel local.
+4. Selecciona `application/json` y el evento `Just the push event`.
+5. Guarda el webhook.
+
+Nota:
+- En este punto no necesitas `infra/jenkins/Jenkinsfile.dev`; el archivo de raiz `Jenkinsfile` es el que Jenkins multibranch va a descubrir.
 
 ## Kubernetes
 Archivo de cluster:
