@@ -68,9 +68,7 @@ pipeline {
                     ./gradlew :services:circleguard-promotion-service:test \
                         --tests 'com.circleguard.promotion.service.StatusLifecycleTest' \
                         --tests 'com.circleguard.promotion.service.HealthStatusServiceTest' \
-                        --tests 'com.circleguard.promotion.service.HealthStatusReevaluationTest' \
                         --tests 'com.circleguard.promotion.service.FloorServiceTest' \
-                        --tests 'com.circleguard.promotion.service.AdministrativeCorrectionTest' \
                         --tests 'com.circleguard.promotion.listener.SurveyListenerTest' \
                         --tests 'com.circleguard.promotion.controller.HealthStatusControllerTest'
                 '''

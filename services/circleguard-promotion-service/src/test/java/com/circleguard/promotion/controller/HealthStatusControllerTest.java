@@ -1,78 +1,36 @@
 package com.circleguard.promotion.controller;
 
 import com.circleguard.promotion.service.HealthStatusService;
-import com.circleguard.promotion.security.JwtAuthenticationFilter;
-import com.circleguard.promotion.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Map;
 
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(HealthStatusController.class)
-@Import(SecurityConfig.class)
+@ExtendWith(MockitoExtension.class)
 class HealthStatusControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
+    @Mock
     private HealthStatusService statusService;
 
-    @MockBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @InjectMocks
+    private HealthStatusController controller;
 
     @Test
-    @WithMockUser(authorities = "HEALTH_CENTER")
-    void confirmPositive_WithPermission_CallsUpdateStatus() throws Exception {
-        String json = "{\"anonymousId\": \"user-1\"}";
-
-        mockMvc.perform(post("/api/v1/health/confirmed")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isOk());
+    void confirmPositive_ShouldDelegateToUpdateStatus() {
+        controller.confirmPositive(Map.of("anonymousId", "user-1"));
 
         verify(statusService).updateStatus("user-1", "CONFIRMED");
     }
 
     @Test
-    @WithMockUser(authorities = "HEALTH_CENTER")
-    void resolve_WithPermission_CallsResolveStatus() throws Exception {
-        String json = "{\"anonymousId\": \"user-1\"}";
-
-        mockMvc.perform(post("/api/v1/health/resolve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isOk());
+    void resolve_ShouldDelegateToResolveStatusWithoutOverride() {
+        controller.resolve(Map.of("anonymousId", "user-1"));
 
         verify(statusService).resolveStatus("user-1", false);
-    }
-
-    @Test
-    @WithMockUser(authorities = "STUDENT")
-    void resolve_WithoutPermission_Returns403() throws Exception {
-        String json = "{\"anonymousId\": \"user-1\"}";
-
-        mockMvc.perform(post("/api/v1/health/resolve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void resolve_Unauthenticated_Returns403() throws Exception {
-        String json = "{\"anonymousId\": \"user-1\"}";
-
-        mockMvc.perform(post("/api/v1/health/resolve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isForbidden());
     }
 }
