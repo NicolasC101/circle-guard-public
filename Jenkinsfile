@@ -43,17 +43,17 @@ pipeline {
                       chmod +x "$TOOLS_DIR/kubectl"
                     fi
 
-                                        for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                                        for attempt in $(seq 1 60); do
                                             if docker info >/dev/null 2>&1; then
                                                 break
                                             fi
 
-                                            if [ "$attempt" -eq 15 ]; then
-                                                echo "Docker daemon is not ready"
+                                            if [ "$attempt" -eq 60 ]; then
+                                                echo "Docker daemon is not ready after 5 minutes"
                                                 exit 1
                                             fi
 
-                                            sleep 2
+                                            sleep 5
                                         done
 
                     "$TOOLS_DIR/kind" get kubeconfig --name circleguard > "$TOOLS_DIR/kubeconfig"

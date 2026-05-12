@@ -28,6 +28,7 @@
   - `Cannot connect to the Docker daemon at unix:///var/run/docker.sock`
 - Ahora Jenkins monta `/var/run/docker.sock` desde el host.
 - El pipeline descarga el Docker CLI en `.ci-tools` y espera a `docker info` antes de invocar `kind`.
+- La espera de Docker ahora es de hasta 5 minutos para cubrir arranques lentos del daemon.
 - Esto evita depender de `docker:dind` y deja la topología alineada con el Docker local.
 
 ## Siguiente paso sugerido
