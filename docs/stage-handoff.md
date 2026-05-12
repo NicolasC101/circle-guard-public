@@ -2,9 +2,9 @@
 
 ## Estado actual
 - La rama `stage` ya incluye el pipeline de Kubernetes para el punto 4.
-- El fallo actual de Jenkins era porque el kubeconfig de `kind` seguía apuntando a `127.0.0.1`, que dentro del contenedor de Jenkins no resuelve al host.
-- Se corrigió reescribiendo el kubeconfig a `host.docker.internal` y limpiando las imágenes `stage` al final del pipeline.
-- El cambio más reciente quedó subido en el commit `9223cd4`.
+- El fallo actual de Jenkins era porque el kubeconfig de `kind` quedó apuntando a `host.docker.internal` pero validando el certificado contra ese mismo nombre, mientras el SAN real del API server es `localhost`.
+- Se corrigió reescribiendo el kubeconfig para conectarse por `host.docker.internal` y validando el certificado como `localhost`, además de limpiar las imágenes `stage` al final del pipeline.
+- El cambio más reciente quedó subido en el commit `fbefc51`.
 
 ## Archivos relevantes
 - [Jenkinsfile](../Jenkinsfile)
@@ -31,7 +31,7 @@
 - El pipeline descarga el Docker CLI en `.ci-tools` y espera a `docker info` antes de invocar `kind`.
 - La espera de Docker ahora es de hasta 5 minutos para cubrir arranques lentos del daemon.
 - Esto evita depender de `docker:dind` y usa el daemon TCP expuesto por Docker Desktop.
-- El kubeconfig generado para `kind` se reescribe para usar `host.docker.internal` en vez de `127.0.0.1`.
+- El kubeconfig generado para `kind` se reescribe para usar `host.docker.internal` y se fuerza `tls-server-name=localhost` para respetar el SAN del certificado.
 - Al final del pipeline se eliminan las imágenes `circleguard-*-service:stage` del daemon Docker.
 
 ## Requisito del entorno

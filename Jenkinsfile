@@ -63,6 +63,7 @@ pipeline {
 
                     "$TOOLS_DIR/kind" get kubeconfig --name circleguard > "$TOOLS_DIR/kubeconfig"
                                         sed -i 's/127.0.0.1/host.docker.internal/g' "$TOOLS_DIR/kubeconfig"
+                                        "$TOOLS_DIR/kubectl" config set-cluster kind-circleguard --tls-server-name=localhost --kubeconfig="$TOOLS_DIR/kubeconfig"
                 '''
             }
         }
