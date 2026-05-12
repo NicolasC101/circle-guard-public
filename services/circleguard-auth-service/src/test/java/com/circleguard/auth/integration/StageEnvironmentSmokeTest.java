@@ -78,10 +78,10 @@ class StageEnvironmentSmokeTest {
                 .build();
 
         HttpResponse<String> validateResponse = sendWithRetry(validateRequest, 30, Duration.ofSeconds(2));
-        assertEquals(200, validateResponse.statusCode());
+        assertEquals(200, validateResponse.statusCode(), "Gateway validate HTTP status, body: " + validateResponse.body());
         JsonNode validateBody = objectMapper.readTree(validateResponse.body());
-        assertTrue(validateBody.get("valid").asBoolean());
-        assertEquals("GREEN", validateBody.get("status").asText());
+        assertTrue(validateBody.get("valid").asBoolean(), "Gateway validate response: " + validateBody.toString());
+        assertEquals("GREEN", validateBody.get("status").asText(), "Gateway validate response: " + validateBody.toString());
     }
 
     private JsonNode login() throws IOException, InterruptedException {
