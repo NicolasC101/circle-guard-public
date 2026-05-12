@@ -2,9 +2,9 @@
 
 ## Estado actual
 - La rama `stage` ya incluye el pipeline de Kubernetes para el punto 4.
-- El fallo actual de Jenkins era por usar el socket Unix por defecto dentro del contenedor en vez del daemon TCP de Docker Desktop.
-- Se corrigió apuntando el pipeline a `tcp://host.docker.internal:2375` y conservando el cliente Docker descargado en el workspace.
-- El cambio más reciente quedó subido en el commit `4b9f6b2`.
+- El fallo actual de Jenkins era porque el kubeconfig de `kind` seguía apuntando a `127.0.0.1`, que dentro del contenedor de Jenkins no resuelve al host.
+- Se corrigió reescribiendo el kubeconfig a `host.docker.internal` y limpiando las imágenes `stage` al final del pipeline.
+- El cambio más reciente quedó subido en el commit `9223cd4`.
 
 ## Archivos relevantes
 - [Jenkinsfile](../Jenkinsfile)
@@ -22,6 +22,7 @@
 6. Carga las imágenes en `kind`.
 7. Aplica los manifiestos de Kubernetes de stage.
 8. Ejecuta el smoke test contra el entorno desplegado.
+9. Elimina las imágenes `stage` del daemon Docker para no dejarlas disponibles para la siguiente fase.
 
 ## Corrección aplicada al fallo actual
 - Antes Jenkins intentaba usar el Docker del host y fallaba con:
@@ -30,6 +31,8 @@
 - El pipeline descarga el Docker CLI en `.ci-tools` y espera a `docker info` antes de invocar `kind`.
 - La espera de Docker ahora es de hasta 5 minutos para cubrir arranques lentos del daemon.
 - Esto evita depender de `docker:dind` y usa el daemon TCP expuesto por Docker Desktop.
+- El kubeconfig generado para `kind` se reescribe para usar `host.docker.internal` en vez de `127.0.0.1`.
+- Al final del pipeline se eliminan las imágenes `circleguard-*-service:stage` del daemon Docker.
 
 ## Requisito del entorno
 - En Docker Desktop debe estar habilitado `Expose daemon on tcp://localhost:2375 without TLS`.
