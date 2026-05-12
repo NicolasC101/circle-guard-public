@@ -18,6 +18,11 @@ Ejecución:
 docker compose -f infra/jenkins/docker-compose.yml up -d
 ```
 
+Nota importante:
+- Jenkins usa un daemon Docker propio basado en `docker:dind` dentro del mismo compose.
+- El pipeline de `stage` apunta a `DOCKER_HOST=tcp://docker:2375`, asi que no depende del socket Docker del host.
+- Si cambias el compose, vuelve a recrear el stack con `docker compose -f infra/jenkins/docker-compose.yml up -d --force-recreate`.
+
 Acceso inicial:
 - `http://localhost:8080`
 - El password inicial se obtiene en los logs del contenedor con `docker logs circleguard-jenkins` o en `/var/jenkins_home/secrets/initialAdminPassword`.

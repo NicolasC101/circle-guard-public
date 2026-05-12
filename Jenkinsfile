@@ -7,6 +7,11 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
+    environment {
+        DOCKER_HOST = 'tcp://docker:2375'
+        DOCKER_TLS_CERTDIR = ''
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -42,6 +47,19 @@ pipeline {
                       curl -fsSL -o "$TOOLS_DIR/kubectl" https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl
                       chmod +x "$TOOLS_DIR/kubectl"
                     fi
+
+                                        for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                                            if docker info >/dev/null 2>&1; then
+                                                break
+                                            fi
+
+                                            if [ "$attempt" -eq 15 ]; then
+                                                echo "Docker daemon is not ready"
+                                                exit 1
+                                            fi
+
+                                            sleep 2
+                                        done
 
                     "$TOOLS_DIR/kind" get kubeconfig --name circleguard > "$TOOLS_DIR/kubeconfig"
                 '''
