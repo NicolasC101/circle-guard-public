@@ -48,17 +48,6 @@ pipeline {
                       chmod +x "$TOOLS_DIR/kubectl"
                     fi
 
-                                        if ! command -v python3 >/dev/null 2>&1; then
-                                            apt-get update
-                                            DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip
-                                        fi
-
-                                        if [ ! -x "$TOOLS_DIR/locust-venv/bin/locust" ]; then
-                                            python3 -m venv "$TOOLS_DIR/locust-venv"
-                                            "$TOOLS_DIR/locust-venv/bin/pip" install --upgrade pip
-                                            "$TOOLS_DIR/locust-venv/bin/pip" install locust==2.44.1
-                                        fi
-
                                         for attempt in $(seq 1 60); do
                                             if docker info >/dev/null 2>&1; then
                                                 break
@@ -235,21 +224,18 @@ pipeline {
             steps {
                 sh '''
                     set -e
-                    TOOLS_DIR="${WORKSPACE}/.ci-tools"
                     mkdir -p build/reports/locust
 
-                    AUTH_BASE_URL=http://host.docker.internal:30180 \
-                    GATEWAY_BASE_URL=http://host.docker.internal:30182 \
-                    CIRCLEGUARD_USERNAME=super_admin \
-                    CIRCLEGUARD_PASSWORD=password \
-                    "$TOOLS_DIR/locust-venv/bin/locust" \
-                        -f performance/locustfile.py \
-                        --headless \
-                        --users 20 \
-                        --spawn-rate 5 \
-                        --run-time 2m \
-                        --csv build/reports/locust/master \
-                        --html build/reports/locust/master.html
+                    docker run --rm \
+                        --add-host=host.docker.internal:host-gateway \
+                        -v "${WORKSPACE}:/workspace" \
+                        -w /workspace \
+                        -e AUTH_BASE_URL=http://host.docker.internal:30180 \
+                        -e GATEWAY_BASE_URL=http://host.docker.internal:30182 \
+                        -e CIRCLEGUARD_USERNAME=super_admin \
+                        -e CIRCLEGUARD_PASSWORD=password \
+                        python:3.11-slim \
+                        sh -lc 'pip install --no-cache-dir locust==2.44.1 >/tmp/locust-install.log && locust -f performance/locustfile.py --headless --users 20 --spawn-rate 5 --run-time 2m --csv build/reports/locust/master --html build/reports/locust/master.html'
                 '''
             }
         }

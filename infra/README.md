@@ -147,6 +147,7 @@ Notas de configuracion:
 - El stage sigue usando `circleguard-stage` y `30080/30081/30082`.
 - Master usa `circleguard-master` y `30180/30181/30182`.
 - Las pruebas de integracion y Locust usan `host.docker.internal` para llegar a los NodePorts del cluster local.
+- Locust se ejecuta dentro de un contenedor Docker temporal, no requiere Python instalado en Jenkins.
 - El pipeline genera `build/reports/release-notes/RELEASE-NOTES.md` con el resumen de cambios del build.
 - Las Release Notes quedan archivadas junto con los reportes de pruebas.
 
