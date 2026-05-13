@@ -77,9 +77,7 @@ class StageEnvironmentSmokeTest {
                 .POST(HttpRequest.BodyPublishers.ofString("{\"token\":\"" + qrToken + "\"}"))
                 .build();
 
-        HttpResponse<String> validateResponse = sendWithRetry(validateRequest, 30, Duration.ofSeconds(2));
-        assertEquals(200, validateResponse.statusCode(), "Gateway validate HTTP status, body: " + validateResponse.body());
-        JsonNode validateBody = objectMapper.readTree(validateResponse.body());
+        JsonNode validateBody = validateUntilValid(validateRequest, 30, Duration.ofSeconds(2));
         assertTrue(validateBody.get("valid").asBoolean(), "Gateway validate response: " + validateBody.toString());
         assertEquals("GREEN", validateBody.get("status").asText(), "Gateway validate response: " + validateBody.toString());
     }
@@ -117,5 +115,26 @@ class StageEnvironmentSmokeTest {
         }
 
         throw lastException;
+    }
+
+    private JsonNode validateUntilValid(HttpRequest request, int attempts, Duration delay)
+            throws IOException, InterruptedException {
+        JsonNode lastBody = null;
+
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            assertEquals(200, response.statusCode(), "Gateway validate HTTP status, body: " + response.body());
+
+            lastBody = objectMapper.readTree(response.body());
+            if (lastBody.path("valid").asBoolean(false)) {
+                return lastBody;
+            }
+
+            if (attempt < attempts) {
+                Thread.sleep(delay.toMillis());
+            }
+        }
+
+        throw new AssertionError("Gateway validate never became valid. Last response: " + lastBody);
     }
 }
