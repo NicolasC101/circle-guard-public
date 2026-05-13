@@ -13,3 +13,12 @@ nodes:
       - containerPort: 30082
         hostPort: 30082
         protocol: TCP
+      - containerPort: 30180
+        hostPort: 30180
+        protocol: TCP
+      - containerPort: 30181
+        hostPort: 30181
+        protocol: TCP
+      - containerPort: 30182
+        hostPort: 30182
+        protocol: TCP

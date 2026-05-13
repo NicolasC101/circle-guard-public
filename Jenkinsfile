@@ -48,6 +48,12 @@ pipeline {
                       chmod +x "$TOOLS_DIR/kubectl"
                     fi
 
+                                        if [ ! -x "$TOOLS_DIR/locust-venv/bin/locust" ]; then
+                                            python -m venv "$TOOLS_DIR/locust-venv"
+                                            "$TOOLS_DIR/locust-venv/bin/pip" install --upgrade pip
+                                            "$TOOLS_DIR/locust-venv/bin/pip" install locust==2.44.1
+                                        fi
+
                                         for attempt in $(seq 1 60); do
                                             if docker info >/dev/null 2>&1; then
                                                 break
@@ -143,7 +149,18 @@ pipeline {
             }
         }
 
-        stage('Build stage images') {
+        stage('System tests (E2E)') {
+            steps {
+                sh '''
+                    ./gradlew :services:circleguard-auth-service:test \
+                        :services:circleguard-gateway-service:test \
+                        --tests 'com.circleguard.auth.e2e.AuthUserJourneyE2ETest' \
+                        --tests 'com.circleguard.gateway.e2e.GatewayAccessE2ETest'
+                '''
+            }
+        }
+
+        stage('Build master images') {
             steps {
                 sh '''
                     set -e
@@ -151,15 +168,15 @@ pipeline {
                         :services:circleguard-identity-service:bootJar \
                         :services:circleguard-gateway-service:bootJar
 
-                    docker build -t circleguard-auth-service:stage \
+                    docker build -t circleguard-auth-service:master \
                         -f services/circleguard-auth-service/Dockerfile \
                         services/circleguard-auth-service
 
-                    docker build -t circleguard-identity-service:stage \
+                    docker build -t circleguard-identity-service:master \
                         -f services/circleguard-identity-service/Dockerfile \
                         services/circleguard-identity-service
 
-                    docker build -t circleguard-gateway-service:stage \
+                    docker build -t circleguard-gateway-service:master \
                         -f services/circleguard-gateway-service/Dockerfile \
                         services/circleguard-gateway-service
                 '''
@@ -171,14 +188,14 @@ pipeline {
                 sh '''
                     set -e
                     TOOLS_DIR="${WORKSPACE}/.ci-tools"
-                    "$TOOLS_DIR/kind" load docker-image circleguard-auth-service:stage --name circleguard
-                    "$TOOLS_DIR/kind" load docker-image circleguard-identity-service:stage --name circleguard
-                    "$TOOLS_DIR/kind" load docker-image circleguard-gateway-service:stage --name circleguard
+                    "$TOOLS_DIR/kind" load docker-image circleguard-auth-service:master --name circleguard
+                    "$TOOLS_DIR/kind" load docker-image circleguard-identity-service:master --name circleguard
+                    "$TOOLS_DIR/kind" load docker-image circleguard-gateway-service:master --name circleguard
                 '''
             }
         }
 
-        stage('Deploy stage apps') {
+        stage('Deploy master apps') {
             steps {
                 sh '''
                     set -e
@@ -186,25 +203,79 @@ pipeline {
                     export KUBECONFIG="$TOOLS_DIR/kubeconfig"
 
                     "$TOOLS_DIR/kubectl" apply -f infra/k8s/namespaces.yaml
-                    "$TOOLS_DIR/kubectl" apply -f infra/k8s/stage/apps.yaml
+                    "$TOOLS_DIR/kubectl" apply -f infra/k8s/master/apps.yaml
 
-                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-redis -n circleguard-stage --timeout=180s
-                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-auth-service -n circleguard-stage --timeout=180s
-                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-identity-service -n circleguard-stage --timeout=180s
-                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-gateway-service -n circleguard-stage --timeout=180s
+                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-redis -n circleguard-master --timeout=180s
+                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-auth-service -n circleguard-master --timeout=180s
+                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-identity-service -n circleguard-master --timeout=180s
+                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-gateway-service -n circleguard-master --timeout=180s
                 '''
             }
         }
 
-        stage('Stage integration tests') {
+        stage('Master integration tests') {
             steps {
                 sh '''
-                    AUTH_BASE_URL=http://host.docker.internal:30080 \
-                    GATEWAY_BASE_URL=http://host.docker.internal:30082 \
+                    AUTH_BASE_URL=http://host.docker.internal:30180 \
+                    GATEWAY_BASE_URL=http://host.docker.internal:30182 \
                     CIRCLEGUARD_USERNAME=super_admin \
                     CIRCLEGUARD_PASSWORD=password \
                     ./gradlew :services:circleguard-auth-service:test \
                         --tests 'com.circleguard.auth.integration.StageEnvironmentSmokeTest'
+                '''
+            }
+        }
+
+        stage('Master stress tests (Locust)') {
+            steps {
+                sh '''
+                    set -e
+                    TOOLS_DIR="${WORKSPACE}/.ci-tools"
+                    mkdir -p build/reports/locust
+
+                    AUTH_BASE_URL=http://host.docker.internal:30180 \
+                    GATEWAY_BASE_URL=http://host.docker.internal:30182 \
+                    CIRCLEGUARD_USERNAME=super_admin \
+                    CIRCLEGUARD_PASSWORD=password \
+                    "$TOOLS_DIR/locust-venv/bin/locust" \
+                        -f performance/locustfile.py \
+                        --headless \
+                        --users 20 \
+                        --spawn-rate 5 \
+                        --run-time 2m \
+                        --csv build/reports/locust/master \
+                        --html build/reports/locust/master.html
+                '''
+            }
+        }
+
+        stage('Generate release notes') {
+            steps {
+                sh '''
+                    set -e
+                    NOTES_DIR="build/reports/release-notes"
+                    mkdir -p "$NOTES_DIR"
+
+                    LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+                    VERSION="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
+
+                    {
+                        echo "# Release Notes"
+                        echo
+                        echo "- Branch: ${BRANCH_NAME:-master}"
+                        echo "- Build: ${BUILD_NUMBER}"
+                        echo "- Version: $VERSION"
+                        echo "- Commit: $(git rev-parse --short HEAD)"
+                        echo "- Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                        echo
+                        echo "## Changes"
+
+                        if [ -n "$LAST_TAG" ]; then
+                            git log --first-parent --pretty=format:'- %h %s' "$LAST_TAG"..HEAD
+                        else
+                            git log --first-parent --max-count=10 --pretty=format:'- %h %s'
+                        fi
+                    } > "$NOTES_DIR/RELEASE-NOTES.md"
                 '''
             }
         }
@@ -221,7 +292,7 @@ pipeline {
             '''
             */
             junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
-            archiveArtifacts allowEmptyArchive: true, artifacts: '**/build/reports/tests/test/**'
+            archiveArtifacts allowEmptyArchive: true, artifacts: '**/build/reports/tests/test/**,**/build/reports/locust/**,**/build/reports/release-notes/**'
         }
     }
 }

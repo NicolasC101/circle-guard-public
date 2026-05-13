@@ -110,7 +110,45 @@ Notas de configuracion:
 - Jenkins necesita acceso al socket Docker del host para crear y cargar las imagenes de `kind`.
 - El stage despliega Redis dentro de `kind` y el gateway valida QR contra ese servicio interno.
 - El pipeline espera el rollout de Redis antes de ejecutar el smoke test.
-- Todavia no se incluyen pruebas E2E; esas se reservaran para `master`.
+- Las pruebas E2E se ejecutan en el pipeline de `master` junto con Locust y las Release Notes.
+
+## Pipeline de master (punto 5)
+Archivo del pipeline:
+- `Jenkinsfile`
+
+Que hace:
+- Ejecuta las pruebas unitarias como base de calidad.
+- Ejecuta pruebas de sistema o E2E antes del despliegue.
+- Construye y carga las imagenes Docker de Auth, Identity y Gateway.
+- Despliega la aplicacion en `kind` bajo `circleguard-master`.
+- Valida el despliegue con smoke tests de integracion.
+- Ejecuta escenarios de carga y estres con Locust.
+- Genera Release Notes automaticas como artefacto del build.
+
+Flujo esperado en Jenkins:
+1. Hacer checkout de la rama `master`.
+2. Descargar `kind`, `kubectl` y la herramienta de Locust dentro del workspace si no existen.
+3. Ejecutar las pruebas unitarias.
+4. Ejecutar las pruebas de sistema/E2E.
+5. Construir los JAR y las imagenes Docker.
+6. Cargar las imagenes en el cluster `kind`.
+7. Aplicar el namespace y los manifiestos de `master`.
+8. Esperar a que los deployments esten listos.
+9. Correr las pruebas de integracion contra los endpoints publicados por el cluster.
+10. Correr los escenarios de Locust contra la aplicacion desplegada.
+11. Generar y archivar las Release Notes.
+
+Puertos expuestos en kind para `master`:
+- `30180` para Auth.
+- `30181` para Identity.
+- `30182` para Gateway.
+
+Notas de configuracion:
+- El stage sigue usando `circleguard-stage` y `30080/30081/30082`.
+- Master usa `circleguard-master` y `30180/30181/30182`.
+- Las pruebas de integracion y Locust usan `host.docker.internal` para llegar a los NodePorts del cluster local.
+- El pipeline genera `build/reports/release-notes/RELEASE-NOTES.md` con el resumen de cambios del build.
+- Las Release Notes quedan archivadas junto con los reportes de pruebas.
 
 ## Kubernetes
 Archivo de cluster:
