@@ -48,8 +48,13 @@ pipeline {
                       chmod +x "$TOOLS_DIR/kubectl"
                     fi
 
+                                        if ! command -v python3 >/dev/null 2>&1; then
+                                            apt-get update
+                                            DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip
+                                        fi
+
                                         if [ ! -x "$TOOLS_DIR/locust-venv/bin/locust" ]; then
-                                            python -m venv "$TOOLS_DIR/locust-venv"
+                                            python3 -m venv "$TOOLS_DIR/locust-venv"
                                             "$TOOLS_DIR/locust-venv/bin/pip" install --upgrade pip
                                             "$TOOLS_DIR/locust-venv/bin/pip" install locust==2.44.1
                                         fi
