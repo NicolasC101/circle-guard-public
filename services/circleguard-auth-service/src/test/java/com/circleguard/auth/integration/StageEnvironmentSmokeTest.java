@@ -70,6 +70,7 @@ class StageEnvironmentSmokeTest {
         assertEquals(200, qrResponse.statusCode());
 
         String qrToken = objectMapper.readTree(qrResponse.body()).get("qrToken").asText();
+        System.out.println("Generated QR Token: " + qrToken);
 
         HttpRequest validateRequest = HttpRequest.newBuilder()
                 .uri(URI.create(GATEWAY_BASE_URL + "/api/v1/gate/validate"))
@@ -122,16 +123,26 @@ class StageEnvironmentSmokeTest {
         JsonNode lastBody = null;
 
         for (int attempt = 1; attempt <= attempts; attempt++) {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            assertEquals(200, response.statusCode(), "Gateway validate HTTP status, body: " + response.body());
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                assertEquals(200, response.statusCode(), "Gateway validate HTTP status, body: " + response.body());
 
-            lastBody = objectMapper.readTree(response.body());
-            if (lastBody.path("valid").asBoolean(false)) {
-                return lastBody;
-            }
+                lastBody = objectMapper.readTree(response.body());
+                System.out.println("Attempt " + attempt + ": Gateway response: " + lastBody.toString());
+                
+                if (lastBody.path("valid").asBoolean(false)) {
+                    return lastBody;
+                }
 
-            if (attempt < attempts) {
-                Thread.sleep(delay.toMillis());
+                if (attempt < attempts) {
+                    Thread.sleep(delay.toMillis());
+                }
+            } catch (Exception e) {
+                System.out.println("Attempt " + attempt + ": Exception during validation: " + e.getMessage());
+                e.printStackTrace();
+                if (attempt < attempts) {
+                    Thread.sleep(delay.toMillis());
+                }
             }
         }
 

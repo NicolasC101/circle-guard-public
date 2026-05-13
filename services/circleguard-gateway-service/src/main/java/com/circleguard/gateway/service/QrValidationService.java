@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import java.security.Key;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class QrValidationService {
     private final StringRedisTemplate redisTemplate;
@@ -22,6 +24,7 @@ public class QrValidationService {
 
     public ValidationResult validateToken(String token) {
         try {
+            log.info("Validating QR token. Secret length: {}", qrSecret.length());
             Key key = Keys.hmacShaKeyFor(qrSecret.getBytes());
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(key)
@@ -30,9 +33,11 @@ public class QrValidationService {
                     .getBody();
 
             String anonymousId = claims.getSubject();
+            log.info("Token validated. Anonymous ID: {}", anonymousId);
             
             // Check Redis for current Health Status
             String status = redisTemplate.opsForValue().get(STATUS_KEY_PREFIX + anonymousId);
+            log.info("Redis status for user {}: {}", anonymousId, status);
             
             if ("CONTAGIED".equals(status) || "POTENTIAL".equals(status)) {
                 return new ValidationResult(false, "RED", "Access Denied: Health Risk Detected");
@@ -41,6 +46,7 @@ public class QrValidationService {
             return new ValidationResult(true, "GREEN", "Welcome to Campus");
             
         } catch (Exception e) {
+            log.error("Token validation failed", e);
             return new ValidationResult(false, "RED", "Invalid or Expired Token");
         }
     }
