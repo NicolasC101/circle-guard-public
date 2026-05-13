@@ -18,6 +18,13 @@ Ejecución:
 docker compose -f infra/jenkins/docker-compose.yml up -d
 ```
 
+Nota importante:
+- Jenkins usa el daemon TCP de Docker Desktop en `host.docker.internal:2375`.
+- El pipeline de `stage` instala el cliente Docker en el workspace y usa ese daemon para hablar con Docker Desktop.
+- El pipeline de `stage` espera hasta 5 minutos a que `docker info` responda antes de seguir con `kind`.
+- Si cambias el compose, vuelve a recrear el stack con `docker compose -f infra/jenkins/docker-compose.yml up -d --force-recreate`.
+- El host donde corre Docker debe estar activo antes de lanzar Jenkins.
+
 Acceso inicial:
 - `http://localhost:8080`
 - El password inicial se obtiene en los logs del contenedor con `docker logs circleguard-jenkins` o en `/var/jenkins_home/secrets/initialAdminPassword`.
@@ -25,7 +32,7 @@ Acceso inicial:
 
 ## Pipeline de desarrollo (punto 2)
 Archivo del pipeline:
-- `infra/jenkins/Jenkinsfile.dev`
+- `Jenkinsfile`
 
 Que hace:
 - Hace checkout del repositorio y habilita `gradlew`.
@@ -42,13 +49,68 @@ Pruebas incluidas por servicio:
 
 Configuracion en Jenkins desde `http://localhost:8080`:
 1. Entra con el usuario administrador y abre `New Item`.
-2. Crea un proyecto `Pipeline` y ponle un nombre como `circleguard-dev-unit-tests`.
-3. En la seccion `Pipeline`, elige `Pipeline script from SCM`.
-4. Selecciona `Git` como SCM y pega la URL del repositorio.
-5. Usa la rama `master` o la rama que estes trabajando.
-6. En `Script Path`, escribe `infra/jenkins/Jenkinsfile.dev`.
-7. Guarda el job y ejecuta `Build Now`.
-8. Revisa `Stage View`, la consola y los reportes JUnit para confirmar que solo corrio el bloque de pruebas unitarias.
+2. Crea un proyecto `Multibranch Pipeline` y ponle un nombre como `circleguard-dev`.
+3. En `Branch Sources`, agrega `Git`.
+4. Pega la URL del repositorio.
+5. Si el repositorio es publico, deja `Credentials` en `None`.
+6. Si Jenkins exige credenciales, crea una credencial de tipo `Username with password` con tu usuario de GitHub y un token personal como password, o usa el token que ya tengas configurado.
+7. En `Behaviors`, puedes dejar la deteccion por defecto para descubrir ramas remotas.
+8. Guarda el job.
+9. Abre `Scan Multibranch Pipeline Now` para que Jenkins detecte la rama `dev`.
+10. Cuando aparezca la rama `dev`, entra al subjob y ejecuta `Build Now`.
+11. Revisa `Console Output`, `Stage View` y los reportes JUnit para confirmar que corrieron solo las pruebas unitarias.
+12. Para futuras ejecuciones, cada push a `dev` disparara el pipeline automaticamente si el webhook queda configurado.
+
+Configuracion opcional de webhook:
+1. En GitHub, abre el repositorio.
+2. Ve a `Settings > Webhooks`.
+3. Agrega la URL del webhook de Jenkins, normalmente `http://localhost:8080/github-webhook/` si Jenkins es accesible desde GitHub o desde un tunnel local.
+4. Selecciona `application/json` y el evento `Just the push event`.
+5. Guarda el webhook.
+
+Nota:
+- En este punto no necesitas `infra/jenkins/Jenkinsfile.dev`; el archivo de raiz `Jenkinsfile` es el que Jenkins multibranch va a descubrir.
+
+## Pipeline de stage (punto 4)
+Archivo del pipeline:
+- `Jenkinsfile`
+
+Que hace:
+- Ejecuta las pruebas unitarias como puerta de entrada.
+- Construye las imagenes Docker de Auth, Identity y Gateway.
+- Carga esas imagenes en el cluster local `kind`.
+- Aplica los manifiestos de Kubernetes de stage.
+- Ejecuta pruebas de integracion contra la aplicacion ya desplegada.
+
+Archivos de soporte:
+- `services/circleguard-auth-service/Dockerfile`
+- `services/circleguard-identity-service/Dockerfile`
+- `services/circleguard-gateway-service/Dockerfile`
+- `infra/k8s/stage/apps.yaml`
+- `services/circleguard-auth-service/src/test/java/com/circleguard/auth/integration/StageEnvironmentSmokeTest.java`
+
+Flujo esperado en Jenkins:
+1. Hacer checkout de la rama `stage`.
+2. Descargar `kind` y `kubectl` dentro del workspace si no existen.
+3. Ejecutar las pruebas unitarias.
+4. Construir los JAR y las imagenes Docker.
+5. Cargar las imagenes en el cluster `kind`.
+6. Aplicar el namespace y los manifiestos de stage.
+7. Esperar a que los deployments esten listos.
+8. Correr las pruebas de integracion contra los endpoints publicados por el cluster.
+
+Puertos expuestos en kind:
+- `30080` para Auth.
+- `30081` para Identity.
+- `30082` para Gateway.
+
+Notas de configuracion:
+- Auth ya no apunta a `localhost` para Identity; ahora usa `circleguard.identity-service.url`.
+- Las pruebas de integracion usan `host.docker.internal` para llegar desde Jenkins a los NodePorts del cluster local.
+- Jenkins necesita acceso al socket Docker del host para crear y cargar las imagenes de `kind`.
+- El stage despliega Redis dentro de `kind` y el gateway valida QR contra ese servicio interno.
+- El pipeline espera el rollout de Redis antes de ejecutar el smoke test.
+- Todavia no se incluyen pruebas E2E; esas se reservaran para `master`.
 
 ## Kubernetes
 Archivo de cluster:
