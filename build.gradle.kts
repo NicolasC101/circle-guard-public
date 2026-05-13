@@ -46,4 +46,20 @@ subprojects {
     tasks.withType<Test> {
         useJUnitPlatform()
     }
+
+    tasks.register<Test>("e2eTest") {
+        description = "Runs end-to-end tests only."
+        group = "verification"
+        useJUnitPlatform()
+        include("**/*E2ETest.class")
+        shouldRunAfter("test")
+    }
+
+    tasks.register<Test>("smokeTest") {
+        description = "Runs smoke and stage environment tests only."
+        group = "verification"
+        useJUnitPlatform()
+        include("**/*SmokeTest.class")
+        shouldRunAfter("test")
+    }
 }

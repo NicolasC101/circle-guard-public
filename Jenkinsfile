@@ -142,10 +142,8 @@ pipeline {
         stage('System tests (E2E)') {
             steps {
                 sh '''
-                    ./gradlew :services:circleguard-auth-service:test \
-                        :services:circleguard-gateway-service:test \
-                        --tests 'com.circleguard.auth.e2e.AuthUserJourneyE2ETest' \
-                        --tests 'com.circleguard.gateway.e2e.GatewayAccessE2ETest'
+                    ./gradlew :services:circleguard-auth-service:e2eTest \
+                        :services:circleguard-gateway-service:e2eTest
                 '''
             }
         }
@@ -225,8 +223,7 @@ pipeline {
                     GATEWAY_BASE_URL=http://host.docker.internal:30182 \
                     CIRCLEGUARD_USERNAME=super_admin \
                     CIRCLEGUARD_PASSWORD=password \
-                    ./gradlew :services:circleguard-auth-service:test \
-                        --tests 'com.circleguard.auth.integration.StageEnvironmentSmokeTest'
+                    ./gradlew :services:circleguard-auth-service:smokeTest
                 '''
             }
         }
