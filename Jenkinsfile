@@ -60,10 +60,6 @@ pipeline {
 
                                             sleep 5
                                         done
-
-                    "$TOOLS_DIR/kind" get kubeconfig --name circleguard > "$TOOLS_DIR/kubeconfig"
-                                        sed -i 's/127.0.0.1/host.docker.internal/g' "$TOOLS_DIR/kubeconfig"
-                                        "$TOOLS_DIR/kubectl" config set-cluster kind-circleguard --tls-server-name=localhost --kubeconfig="$TOOLS_DIR/kubeconfig"
                 '''
             }
         }
@@ -150,6 +146,21 @@ pipeline {
                         :services:circleguard-gateway-service:test \
                         --tests 'com.circleguard.auth.e2e.AuthUserJourneyE2ETest' \
                         --tests 'com.circleguard.gateway.e2e.GatewayAccessE2ETest'
+                '''
+            }
+        }
+
+        stage('Recreate kind cluster') {
+            steps {
+                sh '''
+                    set -e
+                    TOOLS_DIR="${WORKSPACE}/.ci-tools"
+
+                    "$TOOLS_DIR/kind" delete cluster --name circleguard || true
+                    "$TOOLS_DIR/kind" create cluster --name circleguard --config infra/k8s/kind-config.yaml
+                    "$TOOLS_DIR/kind" get kubeconfig --name circleguard > "$TOOLS_DIR/kubeconfig"
+                    sed -i 's/127.0.0.1/host.docker.internal/g' "$TOOLS_DIR/kubeconfig"
+                    "$TOOLS_DIR/kubectl" config set-cluster kind-circleguard --tls-server-name=localhost --kubeconfig="$TOOLS_DIR/kubeconfig"
                 '''
             }
         }
