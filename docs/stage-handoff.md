@@ -2,9 +2,9 @@
 
 ## Estado actual
 - La rama `stage` ya incluye el pipeline de Kubernetes para el punto 4.
-- El fallo actual de Jenkins era porque el smoke test de stage intentaba conectar a los servicios antes de que el entorno terminara de aceptar conexiones.
-- Se corrigió haciendo el smoke test con reintentos sobre el login de Auth y dejando comentada la limpieza de imágenes `stage` para acelerar la depuración.
-- El cambio más reciente quedó subido en el commit `15488b1`.
+- El fallo actual de Jenkins era porque el gateway validaba QR contra Redis fuera del cluster y terminaba devolviendo un resultado inválido.
+- Se corrigió desplegando Redis dentro de `kind`, apuntando el gateway a `circleguard-redis` y esperando su rollout antes del smoke test.
+- El cambio más reciente ya está aplicado en la rama `stage`.
 
 ## Archivos relevantes
 - [Jenkinsfile](../Jenkinsfile)
@@ -20,9 +20,10 @@
 4. Ejecuta pruebas unitarias seleccionadas.
 5. Construye los JAR y las imágenes Docker de Auth, Identity y Gateway.
 6. Carga las imágenes en `kind`.
-7. Aplica los manifiestos de Kubernetes de stage.
-8. Ejecuta el smoke test contra el entorno desplegado, con reintentos si los servicios todavía están arrancando.
-9. La limpieza de imágenes `stage` queda comentada por ahora para facilitar la depuración.
+7. Aplica los manifiestos de Kubernetes de stage, incluyendo Redis para el gateway.
+8. Espera el rollout de Redis, Auth, Identity y Gateway.
+9. Ejecuta el smoke test contra el entorno desplegado, con reintentos si los servicios todavía están arrancando.
+10. La limpieza de imágenes `stage` queda comentada por ahora para facilitar la depuración.
 
 ## Corrección aplicada al fallo actual
 - Antes Jenkins intentaba usar el Docker del host y fallaba con:
@@ -33,6 +34,7 @@
 - Esto evita depender de `docker:dind` y usa el daemon TCP expuesto por Docker Desktop.
 - El kubeconfig generado para `kind` se reescribe para usar `host.docker.internal` y se fuerza `tls-server-name=localhost` para respetar el SAN del certificado.
 - El smoke test de stage reintenta el login hasta que Auth responde, para tolerar arranques lentos.
+- El gateway usa Redis desplegado dentro del cluster, no el Redis del host.
 - La limpieza de imágenes `stage` quedó comentada temporalmente.
 
 ## Requisito del entorno

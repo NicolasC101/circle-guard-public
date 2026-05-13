@@ -188,6 +188,7 @@ pipeline {
                     "$TOOLS_DIR/kubectl" apply -f infra/k8s/namespaces.yaml
                     "$TOOLS_DIR/kubectl" apply -f infra/k8s/stage/apps.yaml
 
+                    "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-redis -n circleguard-stage --timeout=180s
                     "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-auth-service -n circleguard-stage --timeout=180s
                     "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-identity-service -n circleguard-stage --timeout=180s
                     "$TOOLS_DIR/kubectl" rollout status deployment/circleguard-gateway-service -n circleguard-stage --timeout=180s

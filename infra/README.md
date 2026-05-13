@@ -108,6 +108,8 @@ Notas de configuracion:
 - Auth ya no apunta a `localhost` para Identity; ahora usa `circleguard.identity-service.url`.
 - Las pruebas de integracion usan `host.docker.internal` para llegar desde Jenkins a los NodePorts del cluster local.
 - Jenkins necesita acceso al socket Docker del host para crear y cargar las imagenes de `kind`.
+- El stage despliega Redis dentro de `kind` y el gateway valida QR contra ese servicio interno.
+- El pipeline espera el rollout de Redis antes de ejecutar el smoke test.
 - Todavia no se incluyen pruebas E2E; esas se reservaran para `master`.
 
 ## Kubernetes
