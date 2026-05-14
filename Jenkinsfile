@@ -234,16 +234,14 @@ pipeline {
                     set -e
                     mkdir -p build/reports/locust
 
-                    docker run --rm \
-                        --add-host=host.docker.internal:host-gateway \
-                        -v "${WORKSPACE}:/workspace" \
-                        -w /workspace \
-                        -e AUTH_BASE_URL=http://host.docker.internal:30180 \
-                        -e GATEWAY_BASE_URL=http://host.docker.internal:30182 \
-                        -e CIRCLEGUARD_USERNAME=super_admin \
-                        -e CIRCLEGUARD_PASSWORD=password \
+                        docker run --rm \
+                            --add-host=host.docker.internal:host-gateway \
+                            -e AUTH_BASE_URL=http://host.docker.internal:30180 \
+                            -e GATEWAY_BASE_URL=http://host.docker.internal:30182 \
+                            -e CIRCLEGUARD_USERNAME=super_admin \
+                            -e CIRCLEGUARD_PASSWORD=password \
                             python:3.11-slim \
-                            sh -c "echo '-- Host debug: PWD=$PWD --' && echo '-- Host debug: ls workspace root --' && ls -la || true && echo '-- Host debug: ls ./performance --' && ls -la ./performance || true && pip install --no-cache-dir locust==2.44.0 >/tmp/locust-install.log && locust -f /workspace/performance/locustfile.py --headless --users 20 --spawn-rate 5 --run-time 2m --csv /workspace/build/reports/locust/master --html /workspace/build/reports/locust/master.html"
+                            sh -c "apt-get update && apt-get install -y git ca-certificates >/dev/null 2>&1 && echo '-- Container: cloning repo into /workspace --' && git clone --depth 1 https://github.com/NicolasC101/circle-guard-public.git /workspace || (cd /workspace && git pull) && echo '-- Container debug: ls /workspace --' && ls -la /workspace || true && echo '-- Container debug: ls /workspace/performance --' && ls -la /workspace/performance || true && pip install --no-cache-dir locust==2.44.0 >/tmp/locust-install.log && locust -f /workspace/performance/locustfile.py --headless --users 20 --spawn-rate 5 --run-time 2m --csv /workspace/build/reports/locust/master --html /workspace/build/reports/locust/master.html"
                 '''
             }
         }
