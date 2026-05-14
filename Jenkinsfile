@@ -243,7 +243,7 @@ pipeline {
                         -e CIRCLEGUARD_USERNAME=super_admin \
                         -e CIRCLEGUARD_PASSWORD=password \
                         python:3.11-slim \
-                        sh -lc 'pip install --no-cache-dir locust==2.44.1 >/tmp/locust-install.log && locust -f performance/locustfile.py --headless --users 20 --spawn-rate 5 --run-time 2m --csv build/reports/locust/master --html build/reports/locust/master.html'
+                        sh -lc 'pip install --no-cache-dir locust==2.44.0 >/tmp/locust-install.log && locust -f performance/locustfile.py --headless --users 20 --spawn-rate 5 --run-time 2m --csv build/reports/locust/master --html build/reports/locust/master.html'
                 '''
             }
         }
