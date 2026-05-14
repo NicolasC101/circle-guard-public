@@ -38,6 +38,8 @@ spec:
               value: my-super-secret-dev-key-32-chars-long-12345678
             - name: QR_SECRET
               value: my-qr-secret-key-for-dev-1234567890
+            - name: QR_EXPIRATION
+              value: "60000"
             - name: CIRCLEGUARD_IDENTITY_SERVICE_URL
               value: http://circleguard-identity-service:8083/api/v1/identities/map
 ---
