@@ -11,7 +11,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -71,16 +70,11 @@ class StageEnvironmentSmokeTest {
         assertEquals(200, qrResponse.statusCode());
 
         String qrToken = objectMapper.readTree(qrResponse.body()).get("qrToken").asText();
-        System.out.println("Generated QR Token: " + qrToken);
-
-        // Properly escape the JSON using ObjectMapper
-        String jsonBody = objectMapper.writeValueAsString(Map.of("token", qrToken));
-        System.out.println("Request JSON body: " + jsonBody);
 
         HttpRequest validateRequest = HttpRequest.newBuilder()
                 .uri(URI.create(GATEWAY_BASE_URL + "/api/v1/gate/validate"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .POST(HttpRequest.BodyPublishers.ofString("{\"token\":\"" + qrToken + "\"}"))
                 .build();
 
         JsonNode validateBody = validateUntilValid(validateRequest, 30, Duration.ofSeconds(2));
@@ -89,13 +83,12 @@ class StageEnvironmentSmokeTest {
     }
 
     private JsonNode login() throws IOException, InterruptedException {
-        // Properly escape the JSON using ObjectMapper
-        String jsonBody = objectMapper.writeValueAsString(Map.of("username", USERNAME, "password", PASSWORD));
-        
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(AUTH_BASE_URL + "/api/v1/auth/login"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"username\":\"" + USERNAME + "\",\"password\":\"" + PASSWORD + "\"}",
+                        StandardCharsets.UTF_8))
                 .build();
 
         HttpResponse<String> response = sendWithRetry(request, 30, Duration.ofSeconds(2));
@@ -129,26 +122,16 @@ class StageEnvironmentSmokeTest {
         JsonNode lastBody = null;
 
         for (int attempt = 1; attempt <= attempts; attempt++) {
-            try {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                assertEquals(200, response.statusCode(), "Gateway validate HTTP status, body: " + response.body());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            assertEquals(200, response.statusCode(), "Gateway validate HTTP status, body: " + response.body());
 
-                lastBody = objectMapper.readTree(response.body());
-                System.out.println("Attempt " + attempt + ": Gateway response: " + lastBody.toString());
-                
-                if (lastBody.path("valid").asBoolean(false)) {
-                    return lastBody;
-                }
+            lastBody = objectMapper.readTree(response.body());
+            if (lastBody.path("valid").asBoolean(false)) {
+                return lastBody;
+            }
 
-                if (attempt < attempts) {
-                    Thread.sleep(delay.toMillis());
-                }
-            } catch (Exception e) {
-                System.out.println("Attempt " + attempt + ": Exception during validation: " + e.getMessage());
-                e.printStackTrace();
-                if (attempt < attempts) {
-                    Thread.sleep(delay.toMillis());
-                }
+            if (attempt < attempts) {
+                Thread.sleep(delay.toMillis());
             }
         }
 
